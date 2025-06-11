@@ -6,7 +6,9 @@ import { db } from "../db/db.js";
 import { UserRole } from "../generated/prisma/index.js";
 import { emailVerificationMailGenContent, sendMail } from "../utils/mail.js";
 import { generateVerificationToken } from "../utils/generate-verification-token.js";
+import jwt from "jsonwebtoken";
 import "dotenv/config";
+
 const registerUser = asyncHandler(async (req, res) => {
   const { email, name, password, confirmPassword } = req.body;
   if (!email || !name || !password || !confirmPassword) {
@@ -65,13 +67,13 @@ const verifyEmail = asyncHandler(async (req, res) => {
       emailVerificationToken: hashedToken,
     },
   });
-  if (user.userVerified) {
-    return res.status(200).json(new ApiResponse(200, "Already Verified"));
-  }
   if (!user) {
     return res
       .status(400)
       .json(new ApiError(400, "Invalid token", [{ token: hashedToken }]));
+  }
+  if (user.userVerified) {
+    return res.status(200).json(new ApiResponse(200, "Already Verified"));
   }
   if (user.emailVerificationExpiry < new Date()) {
     return res
@@ -93,4 +95,34 @@ const verifyEmail = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, "Email verified successfully"));
 });
 
-export { registerUser, verifyEmail };
+const loginUser = asyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json(new ApiError(400, "All Field is required"));
+  }
+  const user = await db.User.findUnique({
+    where: {
+      email: email,
+    },
+  });
+  if (!user) {
+    return res.status(400).json(new ApiError(400, "Please register first"));
+  }
+  const isPasswordValid = await bcrypt.compare(password, user.password);
+  if (!isPasswordValid) {
+    return res.status(401).json(new ApiError(401, "Invalid email or password"));
+  }
+  const payload = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_TOKEN_EXPIRY,
+  });
+  const cookieOption = {
+    maxAge: 1000 * 60 * 60 * 24,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+  };
+  res.cookie("authToken", payload, cookieOption);
+  return res.status(200).json(new ApiResponse(200, "user login successfull"));
+});
+
+export { registerUser, verifyEmail, loginUser };
