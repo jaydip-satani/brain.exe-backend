@@ -1,18 +1,17 @@
 import Mailgen from "mailgen";
 import nodemailer from "nodemailer";
-
+import "dotenv/config";
 const sendMail = async (option) => {
   const mailGenerator = new Mailgen({
     theme: "default",
     product: {
-      name: "Taskio",
-      link: "https://taskio.jaydipsatani.com/",
+      name: "Brain.exe",
+      link: "https://brainexe.jaydipsatani.com/",
     },
   });
 
   const emailText = mailGenerator.generatePlaintext(option.mailGenContent);
   const emailBody = mailGenerator.generate(option.mailGenContent);
-
   const transporter = nodemailer.createTransport({
     host: process.env.MAIL_TRAP_HOST,
     port: process.env.MAIL_TRAP_PORT,
@@ -23,7 +22,7 @@ const sendMail = async (option) => {
     },
   });
   const mail = {
-    from: "info@taskio.com",
+    from: "info@brainexe.com",
     to: option.email,
     subject: option.subject,
     text: emailText,
@@ -42,9 +41,9 @@ const emailVerificationMailGenContent = (username, verificationURL) => {
   return {
     body: {
       name: username,
-      intro: "Welcome to Taskio! We're very excited to have you on board.",
+      intro: "Welcome to Brainexe! We're very excited to have you on board.",
       action: {
-        instructions: "To get started with Taskio, please click here:",
+        instructions: "To get started with Brainexe, please click here:",
         button: {
           color: "#22BC66",
           text: "verify your email",

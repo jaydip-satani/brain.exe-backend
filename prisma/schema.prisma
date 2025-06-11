@@ -28,6 +28,7 @@ model User {
   password                String
   emailVerificationToken  String
   emailVerificationExpiry DateTime
+  userVerified            Boolean  @default(false)
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 }

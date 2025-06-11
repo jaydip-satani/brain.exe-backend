@@ -6,9 +6,19 @@ import { db } from "../db/db.js";
 import { UserRole } from "../generated/prisma/index.js";
 import { emailVerificationMailGenContent, sendMail } from "../utils/mail.js";
 import { generateVerificationToken } from "../utils/generate-verification-token.js";
+import "dotenv/config";
 const registerUser = asyncHandler(async (req, res) => {
-  const { email, name, password } = req.body;
-
+  const { email, name, password, confirmPassword } = req.body;
+  if (!email || !name || !password || !confirmPassword) {
+    return res
+      .status(400)
+      .json(new ApiResponse(400, "All fields are required."));
+  }
+  if (password !== confirmPassword) {
+    return res
+      .status(400)
+      .json(new ApiResponse(400, "Passwords do not match."));
+  }
   const existingUser = await db.User.findUnique({
     where: {
       email,
@@ -39,7 +49,7 @@ const registerUser = asyncHandler(async (req, res) => {
     subject: "Verify your email",
     mailGenContent: emailVerificationMailGenContent(
       name,
-      `${process.env.BASE_URL}api/v1/users/emailVerify/${hashedToken}`
+      `${process.env.BASE_URL}/api/v1/auth/verifyEmail/${hashedToken}`
     ),
   });
   if (!mail) {
@@ -48,4 +58,39 @@ const registerUser = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, "User saved successfully"));
 });
 
-export { registerUser };
+const verifyEmail = asyncHandler(async (req, res) => {
+  const { hashedToken } = req.params;
+  const user = await db.User.findFirst({
+    where: {
+      emailVerificationToken: hashedToken,
+    },
+  });
+  if (user.userVerified) {
+    return res.status(200).json(new ApiResponse(200, "Already Verified"));
+  }
+  if (!user) {
+    return res
+      .status(400)
+      .json(new ApiError(400, "Invalid token", [{ token: hashedToken }]));
+  }
+  if (user.emailVerificationExpiry < new Date()) {
+    return res
+      .status(400)
+      .json(new ApiError(400, "Token expired", [{ token: hashedToken }]));
+  }
+  await db.User.update({
+    where: {
+      id: user.id,
+      emailVerificationToken: undefined,
+      emailVerificationExpiry: undefined,
+    },
+    data: {
+      userVerified: true,
+    },
+  });
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Email verified successfully"));
+});
+
+export { registerUser, verifyEmail };
