@@ -83,10 +83,10 @@ const verifyEmail = asyncHandler(async (req, res) => {
   await db.User.update({
     where: {
       id: user.id,
-      emailVerificationToken: undefined,
-      emailVerificationExpiry: undefined,
     },
     data: {
+      emailVerificationToken: null,
+      emailVerificationExpiry: null,
       userVerified: true,
     },
   });
@@ -109,6 +109,10 @@ const loginUser = asyncHandler(async (req, res) => {
   if (!user) {
     return res.status(400).json(new ApiError(400, "Please register first"));
   }
+  if (!user.userVerified) {
+    return res.status(401).json(new ApiError(401, "Please verify your email"));
+  }
+
   const isPasswordValid = await bcrypt.compare(password, user.password);
   if (!isPasswordValid) {
     return res.status(401).json(new ApiError(401, "Invalid email or password"));
@@ -120,6 +124,7 @@ const loginUser = asyncHandler(async (req, res) => {
     maxAge: 1000 * 60 * 60 * 24,
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
   };
   res.cookie("authToken", payload, cookieOption);
   return res.status(200).json(new ApiResponse(200, "user login successfull"));
