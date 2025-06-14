@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   loginUser,
+  logoutUser,
   registerUser,
   verifyEmail,
 } from "../controllers/auth.controllers.js";
@@ -18,5 +19,6 @@ router.route("/verifyEmail/:hashedToken").get(apiRateLimit, verifyEmail);
 router
   .route("/login")
   .post(apiRateLimit, validateSchema(UserloginSchema), loginUser);
+router.route("/logout").post(apiRateLimit, logoutUser);
 
 export default router;
