@@ -124,14 +124,23 @@ const loginUser = asyncHandler(async (req, res) => {
     maxAge: 1000 * 60 * 60 * 24,
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
   };
   res.cookie("authToken", payload, cookieOption);
   return res.status(200).json(new ApiResponse(200, "user login successfull"));
 });
 
 const logoutUser = asyncHandler(async (req, res) => {
-  res.clearCookie("authToken");
+  const cookieOption = {
+    maxAge: 1000 * 60 * 60 * 24,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+  };
+  res.clearCookie("authToken", cookieOption);
   return res.status(200).json(new ApiResponse(200, "user logout successfull"));
 });
-export { registerUser, verifyEmail, loginUser, logoutUser };
+
+const profile = asyncHandler(async (req, res) => {
+  return res.status(200).json(new ApiResponse(200, "user profile", req.user));
+});
+export { registerUser, verifyEmail, loginUser, logoutUser, profile };
