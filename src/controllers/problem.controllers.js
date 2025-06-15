@@ -41,6 +41,7 @@ const createProblem = asyncHandler(async (req, res) => {
 
       for (let i = 0; i < results.length; i++) {
         const result = results[i];
+        console.log("Result", result);
         if (result.status.id !== 3)
           return res
             .status(400)
@@ -64,12 +65,34 @@ const createProblem = asyncHandler(async (req, res) => {
           userId: req.user.id,
         },
       });
+      console.log(newProblem);
       return res
-        .status(200)
-        .json(new ApiResponse(200, "Problem created", newProblem));
+        .status(201)
+        .json(new ApiResponse(201, "Problem created", newProblem));
     }
   } catch (error) {
-    return res.status(500).json(new ApiError(500, "Internal server error"));
+    console.error("CreateProblem Error:", error);
+    return res
+      .status(500)
+      .json(new ApiError(500, "Internal server error", [{ error: error }]));
   }
 });
-export { createProblem };
+
+const getAllProblems = asyncHandler(async (req, res) => {
+  const problems = await db.Problem.findMany();
+  if (!problems)
+    return res.status(404).json(new ApiError(404, "No problems found"));
+  return res.status(200).json(new ApiResponse(200, "All problems", problems));
+});
+
+const getProblemById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const problem = await db.Problem.findUnique({
+    where: { id },
+  });
+  if (!problem)
+    return res.status(404).json(new ApiError(404, "Problem not found"));
+  return res.status(200).json(new ApiResponse(200, "Problem found", problem));
+});
+
+export { createProblem, getAllProblems, getProblemById };
