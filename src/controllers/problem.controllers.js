@@ -87,6 +87,10 @@ const getAllProblems = asyncHandler(async (req, res) => {
 
 const getProblemById = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  if (!id || id.length < 36) {
+    return res.status(400).json(new ApiError(400, "Invalid id"));
+  }
+
   const problem = await db.Problem.findUnique({
     where: { id },
   });
@@ -172,4 +176,25 @@ const updateProblem = asyncHandler(async (req, res) => {
       .json(new ApiError(500, "Internal server error", [{ error: error }]));
   }
 });
-export { createProblem, getAllProblems, getProblemById, updateProblem };
+
+const deleteProblem = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  if (!id || id.length < 36) {
+    return res.status(400).json(new ApiError(400, "Invalid id"));
+  }
+  const problem = await db.Problem.delete({
+    where: {
+      id,
+    },
+  });
+  if (!problem)
+    return res.status(404).json(new ApiError(404, "Problem not found"));
+  return res.status(200).json(new ApiResponse(200, "Problem deleted", problem));
+});
+export {
+  createProblem,
+  getAllProblems,
+  getProblemById,
+  updateProblem,
+  deleteProblem,
+};

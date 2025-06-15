@@ -3,6 +3,7 @@ import { apiRateLimit } from "../middleware/apiRateLimiting.middleware.js";
 import { authMiddleware, checkAdmin } from "../middleware/auth.middleware.js";
 import {
   createProblem,
+  deleteProblem,
   getAllProblems,
   getProblemById,
   updateProblem,
@@ -17,6 +18,9 @@ router
   .get(apiRateLimit, authMiddleware, getProblemById);
 router
   .route("/update-problem/:id")
-  .patch(apiRateLimit, authMiddleware, checkAdmin, updateProblem);
+  .put(apiRateLimit, authMiddleware, checkAdmin, updateProblem);
+router
+  .route("/delete-problem/:id")
+  .delete(apiRateLimit, authMiddleware, checkAdmin, deleteProblem);
 
 export default router;
