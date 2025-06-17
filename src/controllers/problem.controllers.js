@@ -124,6 +124,17 @@ const updateProblem = asyncHandler(async (req, res) => {
         return res.status(400).json(new ApiError(400, "Invalid language"));
       }
 
+      const isExist = await db.Problem.findUnique({
+        where: {
+          id,
+        },
+      });
+      if (!isExist) {
+        return res
+          .status(404)
+          .json(new ApiError(404, "Problem not found", [{ id: id }]));
+      }
+
       const submission = testcases.map(({ input, output }) => ({
         source_code: solutionCode,
         language_id: languageId,
