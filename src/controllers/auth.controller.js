@@ -112,11 +112,45 @@ const loginUser = asyncHandler(async (req, res) => {
   if (!user.userVerified) {
     return res.status(401).json(new ApiError(401, "Please verify your email"));
   }
-
+  if (user.accountLockedUntil && new Date() < user.accountLockedUntil) {
+    const remainingMinutes = Math.ceil(
+      (user.accountLockedUntil.getTime() - new Date().getTime()) / 60000
+    );
+    return res
+      .status(403)
+      .json(
+        new ApiError(
+          403,
+          `Account is locked. Try again in ${remainingMinutes} minute(s).`
+        )
+      );
+  }
   const isPasswordValid = await bcrypt.compare(password, user.password);
   if (!isPasswordValid) {
-    return res.status(401).json(new ApiError(401, "Invalid email or password"));
+    let updateData = {
+      failedLoginAttempts: user.failedLoginAttempts + 1,
+    };
+
+    if (user.failedLoginAttempts + 1 >= 5) {
+      updateData.accountLockedUntil = new Date(Date.now() + 60 * 60 * 1000);
+      updateData.failedLoginAttempts = 0;
+    }
+
+    await db.User.update({
+      where: { id: user.id },
+      data: updateData,
+    });
+
+    return res.status(400).json(new ApiError(400, "Invalid credentials"));
   }
+  await db.User.update({
+    where: { id: user.id },
+    data: {
+      failedLoginAttempts: 0,
+      accountLockedUntil: null,
+      lastLogin: new Date(),
+    },
+  });
   const payload = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_TOKEN_EXPIRY,
   });

@@ -45,6 +45,9 @@ model User {
   userVerified            Boolean         @default(false)
   createdAt               DateTime        @default(now())
   updatedAt               DateTime        @updatedAt
+  failedLoginAttempts     Int             @default(0)
+  accountLockedUntil      DateTime?
+  lastLogin               DateTime?
   Problem                 Problem[]
   Submission              Submission[]
   ProblemSolved           ProblemSolved[]
