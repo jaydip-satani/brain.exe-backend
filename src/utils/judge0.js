@@ -1,4 +1,5 @@
 import axios from "axios";
+import { Status } from "../generated/prisma/index.js";
 export const getJudge0LanguageId = (language) => {
   const languageMap = {
     javascript: 63,
@@ -48,4 +49,24 @@ export const pollBatchResults = async (tokens) => {
     if (isAllDone) return results;
     await sleep(1000);
   }
+};
+
+export function getLanguageName(languageId) {
+  const languageMap = {
+    63: "JavaScript",
+    71: "Python",
+  };
+
+  return languageMap[languageId] || "Unknown Language";
+}
+export const mapJudge0StatusToEnum = (description) => {
+  const desc = description.toLowerCase();
+
+  if (desc.includes("accepted")) return Status.ACCEPTED;
+  if (desc.includes("wrong answer")) return Status.WRONG_ANSWER;
+  if (desc.includes("compilation error")) return Status.COMPILATION_ERROR;
+  if (desc.includes("runtime error")) return Status.RUNTIME_ERROR;
+  if (desc.includes("time limit")) return Status.TIME_LIMIT_EXCEEDED;
+
+  return Status.RUNTIME_ERROR;
 };

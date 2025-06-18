@@ -5,7 +5,7 @@ import {
   registerUser,
   verifyEmail,
   profile,
-} from "../controllers/auth.controllers.js";
+} from "../controllers/auth.controller.js";
 import { apiRateLimit } from "../middleware/apiRateLimiting.middleware.js";
 import { validateSchema } from "../middleware/validateSchema.middleware.js";
 import {

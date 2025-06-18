@@ -28,6 +28,9 @@ enum Difficulty {
 enum Status {
   ACCEPTED
   WRONG_ANSWER
+  COMPILATION_ERROR
+  RUNTIME_ERROR
+  TIME_LIMIT_EXCEEDED
 }
 
 model User {
@@ -81,7 +84,7 @@ model Submission {
   compiledOutput String?
   status         Status
   memory         Int?
-  time           Int?
+  time           String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -100,7 +103,7 @@ model TestCaseResult {
   expectedOutput String
   actualOutput   String?
   status         Status
-  time           Int?
+  time           String?
   memory         Int?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

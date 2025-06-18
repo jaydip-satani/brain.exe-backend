@@ -7,7 +7,7 @@ import {
   getAllProblems,
   getProblemById,
   updateProblem,
-} from "../controllers/problem.controllers.js";
+} from "../controllers/problem.controller.js";
 const router = Router();
 router
   .route("/create-problem")

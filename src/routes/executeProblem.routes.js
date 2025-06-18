@@ -1,7 +1,14 @@
 import { Router } from "express";
-import { apiRateLimit } from "../middleware/apiRateLimiting.middleware.js";
+import {
+  runApiRateLimit,
+  submitRateLimit,
+} from "../middleware/apiRateLimiting.middleware.js";
 import { authMiddleware } from "../middleware/auth.middleware.js";
-import { executeProblem } from "../controllers/executeProblem.controller.js";
+import {
+  executeProblem,
+  runCode,
+} from "../controllers/executeProblem.controller.js";
 const router = Router();
-router.route("/").post(apiRateLimit, authMiddleware, executeProblem);
+router.route("/").post(submitRateLimit, authMiddleware, executeProblem);
+router.route("/run").post(runApiRateLimit, authMiddleware, runCode);
 export default router;
