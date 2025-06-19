@@ -1,11 +1,11 @@
 import bcrypt from "bcryptjs";
-import { asyncHandler } from "../utils/async-handler.js";
-import { ApiResponse } from "../utils/api-response.js";
-import { ApiError } from "../utils/api-error.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiResponse } from "../utils/apiResponse.js";
+import { ApiError } from "../utils/apiError.js";
 import { db } from "../db/db.js";
 import { UserRole } from "../generated/prisma/index.js";
 import { emailVerificationMailGenContent, sendMail } from "../utils/mail.js";
-import { generateVerificationToken } from "../utils/generate-verification-token.js";
+import { generateVerificationToken } from "../utils/generateVerificationToken.js";
 import jwt from "jsonwebtoken";
 import "dotenv/config";
 

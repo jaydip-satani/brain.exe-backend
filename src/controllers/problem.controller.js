@@ -1,6 +1,6 @@
-import { asyncHandler } from "../utils/async-handler.js";
-import { ApiResponse } from "../utils/api-response.js";
-import { ApiError } from "../utils/api-error.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiResponse } from "../utils/apiResponse.js";
+import { ApiError } from "../utils/apiError.js";
 import { db } from "../db/db.js";
 import {
   getJudge0LanguageId,
@@ -202,10 +202,33 @@ const deleteProblem = asyncHandler(async (req, res) => {
     return res.status(404).json(new ApiError(404, "Problem not found"));
   return res.status(200).json(new ApiResponse(200, "Problem deleted", problem));
 });
+
+const getAllProblemSolvedByUser = asyncHandler(async (req, res) => {
+  const problems = await db.Problem.findMany({
+    where: {
+      solvedBy: {
+        some: {
+          userId: req.user.id,
+        },
+      },
+    },
+    include: {
+      solvedBy: {
+        where: {
+          userId: req.user.id,
+        },
+      },
+    },
+  });
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "All problems solved by user", problems));
+});
 export {
   createProblem,
   getAllProblems,
   getProblemById,
   updateProblem,
   deleteProblem,
+  getAllProblemSolvedByUser,
 };

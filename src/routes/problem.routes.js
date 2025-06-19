@@ -5,6 +5,7 @@ import {
   createProblem,
   deleteProblem,
   getAllProblems,
+  getAllProblemSolvedByUser,
   getProblemById,
   updateProblem,
 } from "../controllers/problem.controller.js";
@@ -22,5 +23,8 @@ router
 router
   .route("/delete-problem/:id")
   .delete(apiRateLimit, authMiddleware, checkAdmin, deleteProblem);
+router
+  .route("/get-all-solved-by-user")
+  .get(apiRateLimit, authMiddleware, getAllProblemSolvedByUser);
 
 export default router;
