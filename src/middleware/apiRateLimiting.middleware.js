@@ -6,7 +6,7 @@ const apiRateLimit = rateLimit({
   message: {
     sucess: false,
     status: 429,
-    error: "Too many requests, please try again later.",
+    message: "Too many requests, please try again later.",
   },
   keyGenerator: (req) => {
     return req.ip + req.path;
@@ -19,7 +19,7 @@ const runApiRateLimit = rateLimit({
   message: {
     success: false,
     status: 429,
-    error: "Too many requests, please try again later.",
+    message: "Too many requests, please try again later.",
   },
   keyGenerator: (req) => {
     return req.ip + req.path; // Unique key for each IP and path
@@ -31,7 +31,7 @@ const submitRateLimit = rateLimit({
   message: {
     success: false,
     status: 429,
-    error: "Too many requests, please try again later.",
+    message: "Too many requests, please try again later.",
   },
   keyGenerator: (req) => {
     return req.ip + req.path;

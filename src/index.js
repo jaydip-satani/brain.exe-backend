@@ -7,15 +7,25 @@ import submissionRoutes from "./routes/submission.routes.js";
 import problemSheetRoutes from "./routes/problemSheet.routes.js";
 import cookieParser from "cookie-parser";
 import { logger } from "./utils/logger.js";
+import cors from "cors";
 const app = express();
 const PORT = process.env.PORT;
-
 app.use(express.json());
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  })
+);
 app.get("/", (req, res) => {
   res.send("hellooo");
 });
 app.use(cookieParser());
-app.use("/api/v1/auth", authRoutes);
+app.use(
+  "/api/v1/auth",
+  express.raw({ type: "application/octet-stream" }),
+  authRoutes
+);
 app.use("/api/v1/problem", problemRoutes);
 app.use("/api/v1/execute-problem", executeRoutes);
 app.use("/api/v1/submission", submissionRoutes);
