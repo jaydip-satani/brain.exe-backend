@@ -1,15 +1,22 @@
 import rateLimit from "express-rate-limit";
-
 const apiRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000,
+  windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5,
-  message: {
-    sucess: false,
-    status: 429,
-    message: "Too many requests, please try again later.",
-  },
-  keyGenerator: (req) => {
-    return req.ip + req.path;
+  keyGenerator: (req) => req.ip + req.path,
+  handler: (req, res) => {
+    const remainingMs = req.rateLimit.resetTime - new Date();
+    const totalSeconds = Math.ceil(remainingMs / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    const formattedTime = `${String(minutes).padStart(2, "0")}:${String(
+      seconds
+    ).padStart(2, "0")}`;
+
+    res.status(429).json({
+      success: false,
+      status: 429,
+      message: `Too many requests, please try again in ${formattedTime} minutes.`,
+    });
   },
 });
 

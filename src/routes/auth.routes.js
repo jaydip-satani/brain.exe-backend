@@ -34,12 +34,8 @@ router
     validateSchema(UserloginSchema),
     loginUser
   );
-router
-  .route("/logout")
-  .get(apiRateLimit, decryptBodyMiddleware, authMiddleware, logoutUser);
-router
-  .route("/profile")
-  .post(apiRateLimit, decryptBodyMiddleware, authMiddleware, profile);
+router.route("/logout").get(apiRateLimit, authMiddleware, logoutUser);
+router.route("/profile").post(authMiddleware, profile);
 router
   .route("/forgotPassword")
   .post(apiRateLimit, decryptBodyMiddleware, authMiddleware, forgotPassword);
