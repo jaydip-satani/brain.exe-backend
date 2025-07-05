@@ -11,16 +11,17 @@ import {
 const createProblem = asyncHandler(async (req, res) => {
   const {
     title,
+    slug,
     description,
     difficulty,
-    tags,
+    tags = [],
     examples,
     constraints,
     testcases,
     codeSnippets,
     referenceSolutions,
   } = req.body;
-
+  const flatTags = tags.map((tag) => tag.value);
   try {
     for (const [language, solutionCode] of Object.entries(referenceSolutions)) {
       const languageId = getJudge0LanguageId(language);
@@ -54,9 +55,10 @@ const createProblem = asyncHandler(async (req, res) => {
       const newProblem = await db.Problem.create({
         data: {
           title,
+          slug,
           description,
           difficulty,
-          tags,
+          tags: flatTags,
           examples,
           constraints,
           testcases,
@@ -82,7 +84,9 @@ const getAllProblems = asyncHandler(async (req, res) => {
   const problems = await db.Problem.findMany();
   if (!problems)
     return res.status(404).json(new ApiError(404, "No problems found"));
-  return res.status(200).json(new ApiResponse(200, "All problems", problems));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "All problems", { problems }));
 });
 
 const getProblemById = asyncHandler(async (req, res) => {
@@ -99,6 +103,21 @@ const getProblemById = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, "Problem found", problem));
 });
 
+const getProblemBySlug = asyncHandler(async (req, res) => {
+  const { slug } = req.params;
+  const isValidSlug = /^[a-z-]+$/.test(slug);
+  if (!isValidSlug && !slug) {
+    return res.status(400).json(new ApiError(400, "Invalid slug"));
+  }
+  const problem = await db.Problem.findUnique({
+    where: { slug },
+  });
+  if (!problem)
+    return res.status(404).json(new ApiError(404, "Problem not found"));
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Problem found", { problem }));
+});
 const updateProblem = asyncHandler(async (req, res) => {
   const { id } = req.params;
   if (!id || id.length < 36) {
@@ -231,4 +250,5 @@ export {
   updateProblem,
   deleteProblem,
   getAllProblemSolvedByUser,
+  getProblemBySlug,
 };

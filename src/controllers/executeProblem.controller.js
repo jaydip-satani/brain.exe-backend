@@ -61,7 +61,7 @@ export const executeProblem = asyncHandler(async (req, res) => {
       compile_output: result.compile_output?.trim() || null,
       status: result.status.description,
       memory: result.memory || 0,
-      time: result.time ? `${result.time} seconds` : null,
+      time: result.time ? parseFloat(result.time) : null,
     };
   });
   console.log(detailedResults.some((res) => res.memory));
@@ -79,11 +79,12 @@ export const executeProblem = asyncHandler(async (req, res) => {
       compiledOutput: detailedResults.some((res) => res.compile_output)
         ? JSON.stringify(detailedResults.map((res) => res.compile_output))
         : null,
-      status: mapJudge0StatusToEnum(results[0].status.description),
+      status: allCorrect ? "ACCEPTED" : "WRONG_ANSWER",
       memory: detailedResults.some((res) => res.memory) ? results[0].memory : 0,
-      time: detailedResults.some((res) => res.time)
-        ? JSON.stringify(detailedResults.map((res) => res.time))
-        : null,
+      time:
+        detailedResults.length > 0
+          ? Math.max(...detailedResults.map((res) => res.time ?? 0))
+          : null,
     },
   });
 
@@ -164,7 +165,7 @@ export const runCode = asyncHandler(async (req, res) => {
 
   const results = await pollBatchResults(tokens);
   console.log(results);
-
+  let allCorrect = true;
   const detailedResults = results.map((result, index) => {
     const stdout = result.stdout?.trim();
     const expected_output = expectedOutput[index]?.trim();
@@ -182,7 +183,7 @@ export const runCode = asyncHandler(async (req, res) => {
       compile_output: result.compile_output?.trim() || null,
       status: result.status.description,
       memory: result.memory || 0,
-      time: result.time ? `${result.time} seconds` : null,
+      time: result.time ? parseFloat(result.time) : null,
     };
   });
 

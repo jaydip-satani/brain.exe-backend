@@ -57,6 +57,7 @@ model User {
 model Problem {
   id                 String     @id @default(uuid())
   title              String
+  slug               String     @unique
   description        String
   difficulty         Difficulty
   tags               String[]
@@ -89,7 +90,7 @@ model Submission {
   compiledOutput String?
   status         Status
   memory         Int?
-  time           String?
+  time           Decimal?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -108,7 +109,7 @@ model TestCaseResult {
   expectedOutput String
   actualOutput   String?
   status         Status
-  time           String?
+  time           Decimal?
   memory         Int?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

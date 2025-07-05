@@ -26,8 +26,16 @@ app.use(
   express.raw({ type: "application/octet-stream" }),
   authRoutes
 );
-app.use("/api/v1/problem", problemRoutes);
-app.use("/api/v1/execute-problem", executeRoutes);
+app.use(
+  "/api/v1/problem",
+  express.raw({ type: "application/octet-stream" }),
+  problemRoutes
+);
+app.use(
+  "/api/v1/execute-problem",
+  express.raw({ type: "application/octet-stream" }),
+  executeRoutes
+);
 app.use("/api/v1/submission", submissionRoutes);
 app.use("/api/v1/problem-sheet", problemSheetRoutes);
 app.listen(PORT, () => logger.info(`Server started successfully on ${PORT}`));

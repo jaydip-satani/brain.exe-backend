@@ -19,7 +19,7 @@ const getSubmissionForProblem = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const problemId = req.params.problemId;
 
-  const submission = await db.Submission.findFirst({
+  const submission = await db.Submission.findMany({
     where: {
       userId: userId,
       problemId: problemId,

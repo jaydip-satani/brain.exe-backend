@@ -5,15 +5,12 @@ import {
   getAllTheSubmissionsForProblem,
   getSubmissionForProblem,
 } from "../controllers/submission.controller.js";
-import { apiRateLimit } from "../middleware/apiRateLimiting.middleware.js";
 const router = Router();
-router
-  .route("/get-all-submissions")
-  .get(apiRateLimit, authMiddleware, getAllSubmissions);
+router.route("/get-all-submissions").get(authMiddleware, getAllSubmissions);
 router
   .route("/get-submission/:problemId")
-  .get(apiRateLimit, authMiddleware, getSubmissionForProblem);
+  .get(authMiddleware, getSubmissionForProblem);
 router
   .route("/get-submission-count/:problemId")
-  .get(apiRateLimit, authMiddleware, getAllTheSubmissionsForProblem);
+  .get(authMiddleware, getAllTheSubmissionsForProblem);
 export default router;
