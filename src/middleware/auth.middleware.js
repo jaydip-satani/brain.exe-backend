@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
-import { asyncHandler } from "../utils/async-handler.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 import { db } from "../db/db.js";
-import { ApiResponse } from "../utils/api-response.js";
+import { ApiResponse } from "../utils/apiResponse.js";
 
 export const authMiddleware = asyncHandler(async (req, res, next) => {
   const token = req.cookies?.authToken;

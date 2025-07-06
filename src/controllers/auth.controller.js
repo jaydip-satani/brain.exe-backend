@@ -1,11 +1,15 @@
 import bcrypt from "bcryptjs";
-import { asyncHandler } from "../utils/async-handler.js";
-import { ApiResponse } from "../utils/api-response.js";
-import { ApiError } from "../utils/api-error.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiResponse } from "../utils/apiResponse.js";
+import { ApiError } from "../utils/apiError.js";
 import { db } from "../db/db.js";
 import { UserRole } from "../generated/prisma/index.js";
-import { emailVerificationMailGenContent, sendMail } from "../utils/mail.js";
-import { generateVerificationToken } from "../utils/generate-verification-token.js";
+import {
+  emailVerificationMailGenContent,
+  sendMail,
+  forgotPasswordMailGenContent,
+} from "../utils/mail.js";
+import { generateVerificationToken } from "../utils/generateVerificationToken.js";
 import jwt from "jsonwebtoken";
 import "dotenv/config";
 
@@ -177,4 +181,88 @@ const logoutUser = asyncHandler(async (req, res) => {
 const profile = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, "user profile", req.user));
 });
-export { registerUser, verifyEmail, loginUser, logoutUser, profile };
+
+const forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json(new ApiError(400, "email is required"));
+  }
+  const user = await db.User.findUnique({
+    where: {
+      email: email,
+    },
+  });
+  if (!user) {
+    return res.status(400).json(new ApiError(400, "No user found"));
+  }
+  const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+    expiresIn: process.env.FORGOT_PASSWORD_EXPIRY,
+  });
+  const mail = await sendMail({
+    email: email,
+    subject: "Forgot password link",
+    mailGenContent: forgotPasswordMailGenContent(
+      email,
+      `${process.env.ORIGIN_URL}/reset-password/${token}`
+    ),
+  });
+  if (!mail) {
+    return res.status(400).json(new ApiError(400, "Error while sending mail"));
+  }
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        "The reset link has been sent to your email address."
+      )
+    );
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+  const { token, newPassword, confirmPassword } = req.body;
+
+  if (!token || !newPassword || !confirmPassword) {
+    return res.status(400).json(new ApiError(400, "All field required."));
+  }
+  if (newPassword !== confirmPassword) {
+    return res.status(400).json(new ApiError(400, "Password do not match"));
+  }
+  let decoded;
+  try {
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (error) {
+    return res
+      .status(401)
+      .json(new ApiResponse(401, "Invalid or expired token"));
+  }
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+  const user = await db.User.update({
+    where: {
+      id: decoded.id,
+    },
+    data: {
+      password: hashedPassword,
+    },
+  });
+  if (!user) {
+    return res
+      .status(400)
+      .json(new ApiResponse(401, "Error while changing password"));
+  }
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Password has been reset successfully."));
+});
+
+export {
+  registerUser,
+  verifyEmail,
+  loginUser,
+  logoutUser,
+  profile,
+  forgotPassword,
+  resetPassword,
+};

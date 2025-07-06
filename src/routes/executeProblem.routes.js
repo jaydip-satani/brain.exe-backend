@@ -8,7 +8,12 @@ import {
   executeProblem,
   runCode,
 } from "../controllers/executeProblem.controller.js";
+import { decryptBodyMiddleware } from "../middleware/decryptBody.middleware.js";
 const router = Router();
-router.route("/").post(submitRateLimit, authMiddleware, executeProblem);
-router.route("/run").post(runApiRateLimit, authMiddleware, runCode);
+router
+  .route("/")
+  .post(submitRateLimit, authMiddleware, decryptBodyMiddleware, executeProblem);
+router
+  .route("/run")
+  .post(runApiRateLimit, authMiddleware, decryptBodyMiddleware, runCode);
 export default router;
