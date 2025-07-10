@@ -7,6 +7,7 @@ import {
   profile,
   forgotPassword,
   resetPassword,
+  userProfile,
 } from "../controllers/auth.controller.js";
 import { apiRateLimit } from "../middleware/apiRateLimiting.middleware.js";
 import { validateSchema } from "../middleware/validateSchema.middleware.js";
@@ -36,6 +37,7 @@ router
   );
 router.route("/logout").get(apiRateLimit, authMiddleware, logoutUser);
 router.route("/profile").post(authMiddleware, profile);
+router.route("/userProfile/:userId").get(authMiddleware, userProfile);
 router
   .route("/forgotPassword")
   .post(apiRateLimit, decryptBodyMiddleware, authMiddleware, forgotPassword);

@@ -25,15 +25,19 @@ const registerUser = asyncHandler(async (req, res) => {
       .status(400)
       .json(new ApiResponse(400, "Passwords do not match."));
   }
-  const existingUser = await db.User.findUnique({
+  const existingUser = await db.User.findFirst({
     where: {
-      email,
+      OR: [{ email }, { name }],
     },
   });
   if (existingUser) {
-    return res
-      .status(400)
-      .json(new ApiResponse(400, "User is already exists."));
+    if (existingUser.email === email) {
+      return res.status(400).json(new ApiResponse(400, "Email is taken."));
+    }
+
+    if (existingUser.name === name) {
+      return res.status(400).json(new ApiResponse(400, "name is taken."));
+    }
   }
   const hashedPassword = await bcrypt.hash(password, 10);
   const { hashedToken, tokenExpiry } = generateVerificationToken();
@@ -182,6 +186,74 @@ const profile = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, "user profile", req.user));
 });
 
+const userProfile = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+  if (!userId) {
+    return res.status(400).json(new ApiError(400, "Invalid user id"));
+  }
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        Problem: true,
+        ProblemSolved: {
+          include: {
+            problem: true,
+          },
+        },
+        Submission: {
+          include: {
+            problem: true,
+            TestCaseResult: true,
+          },
+        },
+        ProblemSheet: {
+          include: {
+            problems: {
+              include: {
+                problem: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    const transformedSheets = user.ProblemSheet.map((sheet) => ({
+      id: sheet.id,
+      name: sheet.name,
+      description: sheet.description,
+      createdAt: sheet.createdAt,
+      problems: sheet.problems.map((p) => p.problem),
+    }));
+
+    return res.status(200).json(
+      new ApiResponse(200, "user data fetched", {
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          image: user.image,
+          role: user.role,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+          verified: user.userVerified,
+        },
+        problemsSolved: user.ProblemSolved.map((s) => s.problem),
+        submissions: user.Submission,
+        problemSheets: transformedSheets,
+      })
+    );
+  } catch (err) {
+    console.error("Error fetching full user data:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
 
@@ -265,4 +337,5 @@ export {
   profile,
   forgotPassword,
   resetPassword,
+  userProfile,
 };

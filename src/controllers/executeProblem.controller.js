@@ -12,10 +12,11 @@ import {
 export const executeProblem = asyncHandler(async (req, res) => {
   const { source_code, language_id, stdin, expectedOutput, problemId } =
     req.body;
-  const userId = req.user.id;
-  if (!userId) {
+  const userId = req.user?.id;
+
+  if (!userId)
     return res.status(401).json(new ApiError(401, "Unauthorized access"));
-  }
+
   if (!source_code || !language_id || !stdin || !expectedOutput || !problemId) {
     return res.status(400).json(new ApiError(400, "All fields are required"));
   }
@@ -31,40 +32,52 @@ export const executeProblem = asyncHandler(async (req, res) => {
       .json(new ApiError(400, "Invalid or missing test cases"));
   }
 
-  const submission = stdin.map((input) => ({
+  const submissions = stdin.map((input) => ({
     source_code,
     language_id,
     stdin: input,
   }));
 
-  const submitResponse = await submitBatch(submission);
+  const submitResponse = await submitBatch(submissions);
   const tokens = submitResponse.map((res) => res.token);
-
   const results = await pollBatchResults(tokens);
-  console.log(results);
 
   let allCorrect = true;
+  let allCompilationErrors = true;
+
   const detailedResults = results.map((result, index) => {
-    const stdout = result.stdout?.trim();
-    const expected_output = expectedOutput[index]?.trim();
+    const stdout = result.stdout?.trim() || "";
+    const expected_output = expectedOutput[index]?.trim() || "";
     const correct = stdout === expected_output;
-    console.log(typeof result.memory);
-    console.log(typeof result.time);
+    const statusDesc = result.status?.description?.toLowerCase() || "unknown";
+
+    const compile_output = result.compile_output?.trim() || null;
+    const stderr = result.stderr?.trim() || null;
+    const memory = result.memory || 0;
+    const time = !isNaN(parseFloat(result.time)) ? parseFloat(result.time) : 0;
+
     if (!correct) allCorrect = false;
+    if (!statusDesc.includes("compilation error")) allCompilationErrors = false;
 
     return {
       testCase: index + 1,
       correct,
       stdout,
       expected: expected_output,
-      stderr: result.stderr?.trim() || null,
-      compile_output: result.compile_output?.trim() || null,
-      status: result.status.description,
-      memory: result.memory || 0,
-      time: result.time ? parseFloat(result.time) : null,
+      stderr,
+      compile_output,
+      status: result.status?.description || "Unknown",
+      memory,
+      time,
     };
   });
-  console.log(detailedResults.some((res) => res.memory));
+
+  const status = allCompilationErrors
+    ? "COMPILATION_ERROR"
+    : allCorrect
+    ? "ACCEPTED"
+    : "WRONG_ANSWER";
+
   const submissionData = await db.Submission.create({
     data: {
       userId,
@@ -79,22 +92,16 @@ export const executeProblem = asyncHandler(async (req, res) => {
       compiledOutput: detailedResults.some((res) => res.compile_output)
         ? JSON.stringify(detailedResults.map((res) => res.compile_output))
         : null,
-      status: allCorrect ? "ACCEPTED" : "WRONG_ANSWER",
-      memory: detailedResults.some((res) => res.memory) ? results[0].memory : 0,
-      time:
-        detailedResults.length > 0
-          ? Math.max(...detailedResults.map((res) => res.time ?? 0))
-          : null,
+      status,
+      memory: detailedResults.length > 0 ? detailedResults[0].memory : 0,
+      time: Math.max(...detailedResults.map((res) => res.time ?? 0)),
     },
   });
 
-  if (allCorrect) {
+  if (status === "ACCEPTED") {
     await db.ProblemSolved.upsert({
       where: {
-        userId_problemId: {
-          userId,
-          problemId,
-        },
+        userId_problemId: { userId, problemId },
       },
       update: {},
       create: {
@@ -103,7 +110,6 @@ export const executeProblem = asyncHandler(async (req, res) => {
       },
     });
   }
-  console.log(detailedResults.map((res) => res.status));
 
   const testcaseResults = detailedResults.map((result) => ({
     submissionId: submissionData.id,
@@ -117,6 +123,7 @@ export const executeProblem = asyncHandler(async (req, res) => {
     time: result.time,
     expectedOutput: result.expected,
   }));
+
   await db.TestCaseResult.createMany({
     data: testcaseResults,
   });
@@ -125,6 +132,7 @@ export const executeProblem = asyncHandler(async (req, res) => {
     where: { id: submissionData.id },
     include: { TestCaseResult: true },
   });
+
   res.status(200).json(
     new ApiResponse(200, "Code execution completed", {
       submission: submissionWithTestcases,
@@ -135,10 +143,11 @@ export const executeProblem = asyncHandler(async (req, res) => {
 export const runCode = asyncHandler(async (req, res) => {
   const { source_code, language_id, stdin, expectedOutput, problemId } =
     req.body;
-  const userId = req.user.id;
-  if (!userId) {
+  const userId = req.user?.id;
+
+  if (!userId)
     return res.status(401).json(new ApiError(401, "Unauthorized access"));
-  }
+
   if (!source_code || !language_id || !stdin || !expectedOutput || !problemId) {
     return res.status(400).json(new ApiError(400, "All fields are required"));
   }
@@ -154,25 +163,20 @@ export const runCode = asyncHandler(async (req, res) => {
       .json(new ApiError(400, "Invalid or missing test cases"));
   }
 
-  const submission = stdin.map((input) => ({
+  const submissions = stdin.map((input) => ({
     source_code,
     language_id,
     stdin: input,
   }));
 
-  const submitResponse = await submitBatch(submission);
+  const submitResponse = await submitBatch(submissions);
   const tokens = submitResponse.map((res) => res.token);
-
   const results = await pollBatchResults(tokens);
-  console.log(results);
-  let allCorrect = true;
+
   const detailedResults = results.map((result, index) => {
-    const stdout = result.stdout?.trim();
-    const expected_output = expectedOutput[index]?.trim();
+    const stdout = result.stdout?.trim() || "";
+    const expected_output = expectedOutput[index]?.trim() || "";
     const correct = stdout === expected_output;
-    console.log(typeof result.memory);
-    console.log(typeof result.time);
-    if (!correct) allCorrect = false;
 
     return {
       testCase: index + 1,
@@ -181,9 +185,9 @@ export const runCode = asyncHandler(async (req, res) => {
       expected: expected_output,
       stderr: result.stderr?.trim() || null,
       compile_output: result.compile_output?.trim() || null,
-      status: result.status.description,
+      status: result.status?.description || "Unknown",
       memory: result.memory || 0,
-      time: result.time ? parseFloat(result.time) : null,
+      time: !isNaN(parseFloat(result.time)) ? parseFloat(result.time) : 0,
     };
   });
 
