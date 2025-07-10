@@ -1,0 +1,160 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum Status {
+  ACCEPTED
+  WRONG_ANSWER
+  COMPILATION_ERROR
+  RUNTIME_ERROR
+  TIME_LIMIT_EXCEEDED
+}
+
+model User {
+  id                      String          @id @default(uuid())
+  name                    String          @unique
+  email                   String          @unique
+  image                   String?
+  role                    UserRole        @default(USER)
+  password                String
+  emailVerificationToken  String?
+  emailVerificationExpiry DateTime?
+  userVerified            Boolean         @default(false)
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+  failedLoginAttempts     Int             @default(0)
+  accountLockedUntil      DateTime?
+  lastLogin               DateTime?
+  Problem                 Problem[]
+  Submission              Submission[]
+  ProblemSolved           ProblemSolved[]
+  ProblemSheet            ProblemSheet[]
+}
+
+model Problem {
+  id                 String     @id @default(uuid())
+  title              String
+  slug               String     @unique
+  description        String
+  difficulty         Difficulty
+  tags               String[]
+  userId             String
+  examples           Json
+  constraints        String
+  hints              String?
+  editorial          String?
+  testcases          Json
+  codeSnippets       Json
+  referenceSolutions Json
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Submission     Submission[]
+  solvedBy       ProblemSolved[]
+  ProblemInSheet ProblemInSheet[]
+}
+
+model Submission {
+  id             String   @id @default(uuid())
+  userId         String
+  problemId      String
+  sourceCode     Json
+  language       String
+  stdin          String?
+  stdout         String?
+  stderr         String?
+  compiledOutput String?
+  status         Status
+  memory         Int?
+  time           Decimal?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem        Problem          @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  TestCaseResult TestCaseResult[]
+}
+
+model TestCaseResult {
+  id             String   @id @default(uuid())
+  submissionId   String
+  testCase       Int
+  passed         Boolean
+  stdout         String?
+  stderr         String?
+  expectedOutput String
+  actualOutput   String?
+  status         Status
+  time           Decimal?
+  memory         Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@index([submissionId], name: "idx_submission_id")
+}
+
+model ProblemSolved {
+  id        String   @id @default(uuid())
+  userId    String
+  problemId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, problemId])
+}
+
+model ProblemSheet {
+  id          String           @id @default(uuid())
+  name        String
+  description String?
+  userId      String
+  problems    ProblemInSheet[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([name, userId])
+}
+
+model ProblemInSheet {
+  id             String   @id @default(uuid())
+  problemSheetId String
+  problemId      String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  problem      Problem      @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  problemSheet ProblemSheet @relation(fields: [problemSheetId], references: [id], onDelete: Cascade)
+
+  @@unique([problemSheetId, problemId])
+}
