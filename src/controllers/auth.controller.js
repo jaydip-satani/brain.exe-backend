@@ -107,22 +107,60 @@ const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
-    return res.status(400).json(new ApiError(400, "All Field is required"));
+    return res.status(400).json(new ApiError(400, "All fields are required"));
   }
-  const user = await db.User.findUnique({
-    where: {
-      email: email,
-    },
-  });
+
+  const user = await db.User.findUnique({ where: { email } });
+
   if (!user) {
-    return res.status(400).json(new ApiError(400, "Please register first"));
+    return res
+      .status(400)
+      .json(new ApiError(400, "User not found. Please register."));
   }
+
   if (!user.userVerified) {
-    return res.status(401).json(new ApiError(401, "Please verify your email"));
+    if (user.emailVerificationExpiry < new Date()) {
+      const { hashedToken, tokenExpiry } = generateVerificationToken();
+      await db.User.update({
+        where: { id: user.id },
+        data: {
+          emailVerificationToken: hashedToken,
+          emailVerificationExpiry: tokenExpiry,
+        },
+      });
+      const mail = await sendMail({
+        email: user.email,
+        subject: "Verify your email",
+        mailGenContent: emailVerificationMailGenContent(
+          user.name,
+          `${process.env.BASE_URL}/api/v1/auth/verifyEmail/${hashedToken}`
+        ),
+      });
+
+      if (!mail) {
+        return res
+          .status(500)
+          .json(new ApiError(500, "Failed to send verification email."));
+      }
+
+      return res
+        .status(401)
+        .json(
+          new ApiResponse(
+            401,
+            "Your verification link had expired. A new one has been sent to your email."
+          )
+        );
+    }
+
+    return res
+      .status(401)
+      .json(new ApiError(401, "Please verify your email before logging in."));
   }
+
   if (user.accountLockedUntil && new Date() < user.accountLockedUntil) {
     const remainingMinutes = Math.ceil(
-      (user.accountLockedUntil.getTime() - new Date().getTime()) / 60000
+      (user.accountLockedUntil.getTime() - Date.now()) / 60000
     );
     return res
       .status(403)
@@ -133,14 +171,26 @@ const loginUser = asyncHandler(async (req, res) => {
         )
       );
   }
+
+  if (!user.password) {
+    return res
+      .status(400)
+      .json(
+        new ApiError(
+          400,
+          "This account was created using Google. Please login with Google or reset your password."
+        )
+      );
+  }
+
   const isPasswordValid = await bcrypt.compare(password, user.password);
   if (!isPasswordValid) {
     let updateData = {
       failedLoginAttempts: user.failedLoginAttempts + 1,
     };
 
-    if (user.failedLoginAttempts + 1 >= 5) {
-      updateData.accountLockedUntil = new Date(Date.now() + 60 * 60 * 1000);
+    if (updateData.failedLoginAttempts >= 5) {
+      updateData.accountLockedUntil = new Date(Date.now() + 60 * 60 * 1000); // Lock for 1 hour
       updateData.failedLoginAttempts = 0;
     }
 
@@ -149,8 +199,9 @@ const loginUser = asyncHandler(async (req, res) => {
       data: updateData,
     });
 
-    return res.status(400).json(new ApiError(400, "Invalid credentials"));
+    return res.status(400).json(new ApiError(400, "Invalid credentials."));
   }
+
   await db.User.update({
     where: { id: user.id },
     data: {
@@ -159,16 +210,23 @@ const loginUser = asyncHandler(async (req, res) => {
       lastLogin: new Date(),
     },
   });
-  const payload = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+
+  const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_TOKEN_EXPIRY,
   });
+
   const cookieOption = {
     maxAge: 1000 * 60 * 60 * 24,
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
   };
-  res.cookie("authToken", payload, cookieOption);
-  return res.status(200).json(new ApiResponse(200, "user login successfull"));
+
+  res.cookie("authToken", token, cookieOption);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "User logged in successfully"));
 });
 
 const logoutUser = asyncHandler(async (req, res) => {

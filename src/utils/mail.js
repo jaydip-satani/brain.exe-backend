@@ -1,6 +1,9 @@
 import Mailgen from "mailgen";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import "dotenv/config";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
 const sendMail = async (option) => {
   const mailGenerator = new Mailgen({
     theme: "default",
@@ -12,25 +15,16 @@ const sendMail = async (option) => {
 
   const emailText = mailGenerator.generatePlaintext(option.mailGenContent);
   const emailBody = mailGenerator.generate(option.mailGenContent);
-  const transporter = nodemailer.createTransport({
-    host: process.env.MAIL_TRAP_HOST,
-    port: process.env.MAIL_TRAP_PORT,
-    secure: process.env.MAIL_TRAP_PORT == 465 ? true : false,
-    auth: {
-      user: process.env.MAIL_TRAP_USER,
-      pass: process.env.MAIL_TRAP_PASSWORD,
-    },
-  });
-  const mail = {
-    from: "info@brainexe.com",
-    to: option.email,
-    subject: option.subject,
-    text: emailText,
-    html: emailBody,
-  };
 
   try {
-    const data = await transporter.sendMail(mail);
+    const data = await resend.emails.send({
+      from: "brainexe@jaydipsatani.com",
+      to: option.email,
+      subject: option.subject,
+      html: emailBody,
+      text: emailText,
+    });
+    console.log(data);
     return data;
   } catch (error) {
     console.error("Email failed to send", error);
@@ -46,7 +40,7 @@ const emailVerificationMailGenContent = (username, verificationURL) => {
         instructions: "To get started with Brainexe, please click here:",
         button: {
           color: "#22BC66",
-          text: "verify your email",
+          text: "Verify your email",
           link: verificationURL,
         },
       },
@@ -60,9 +54,9 @@ const forgotPasswordMailGenContent = (username, passwordURL) => {
   return {
     body: {
       name: username,
-      intro: "We got a request to reset your password",
+      intro: "We got a request to reset your password.",
       action: {
-        instructions: "To change the password  click the button:",
+        instructions: "To change your password, click the button below:",
         button: {
           color: "#22BC66",
           text: "Reset Password",
