@@ -7,6 +7,7 @@ import submissionRoutes from "./routes/submission.routes.js";
 import problemSheetRoutes from "./routes/problemSheet.routes.js";
 import cookieParser from "cookie-parser";
 import { logger } from "./utils/logger.js";
+import { Strategy as GitHubStrategy } from "passport-github2";
 import session from "express-session";
 import jwt from "jsonwebtoken";
 import passport from "passport";
@@ -43,12 +44,9 @@ passport.use(
       try {
         const email = profile.emails[0].value;
 
-        let user = await db.User.findUnique({
-          where: { email },
-        });
+        let user = await db.User.findUnique({ where: { email } });
 
         if (!user) {
-          // Generate unique name
           const baseName = profile.displayName
             .toLowerCase()
             .replace(/\s+/g, "");
@@ -58,6 +56,7 @@ passport.use(
           while (await db.User.findUnique({ where: { name: finalName } })) {
             finalName = `${baseName}${count++}`;
           }
+
           const randomPassword = crypto.randomBytes(32).toString("hex");
 
           user = await db.User.create({
@@ -67,7 +66,13 @@ passport.use(
               image: profile.photos?.[0]?.value,
               userVerified: true,
               password: randomPassword,
+              lastLogin: new Date(), // 👈 Set on create
             },
+          });
+        } else {
+          user = await db.User.update({
+            where: { id: user.id },
+            data: { lastLogin: new Date() },
           });
         }
 
@@ -79,27 +84,71 @@ passport.use(
   )
 );
 
-passport.serializeUser((user, done) => {
-  done(null, user);
-});
-passport.deserializeUser((user, done) => done(null, user));
-app.use(cookieParser());
-app.get(
-  "/auth/google",
-  passport.authenticate("google", {
-    scope: ["profile", "email"],
-  })
+passport.use(
+  new GitHubStrategy(
+    {
+      clientID: process.env.GITHUB_CLIENT_ID,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET,
+      callbackURL: process.env.GITHUB_CALLBACK_URL,
+    },
+    async (accessToken, refreshToken, profile, done) => {
+      try {
+        const email =
+          profile.emails?.[0]?.value || `${profile.username}@github.com`;
+
+        let user = await db.User.findUnique({ where: { email } });
+
+        if (!user) {
+          const baseName = profile.username.toLowerCase().replace(/\s+/g, "");
+          let finalName = baseName;
+          let count = 1;
+
+          while (await db.User.findUnique({ where: { name: finalName } })) {
+            finalName = `${baseName}${count++}`;
+          }
+
+          const randomPassword = crypto.randomBytes(32).toString("hex");
+
+          user = await db.User.create({
+            data: {
+              name: finalName,
+              email,
+              image: profile.photos?.[0]?.value,
+              userVerified: true,
+              password: randomPassword,
+              lastLogin: new Date(), // 👈 Set on create
+            },
+          });
+        } else {
+          user = await db.User.update({
+            where: { id: user.id },
+            data: { lastLogin: new Date() }, // 👈 Set on update
+          });
+        }
+
+        return done(null, user);
+      } catch (err) {
+        return done(err, null);
+      }
+    }
+  )
 );
+
 app.get(
-  "/auth/google/callback",
+  "/auth/github",
+  passport.authenticate("github", { scope: ["user:email"] })
+);
+
+app.get(
+  "/auth/github/callback",
   (req, res, next) => {
     if (req.query.error === "access_denied") {
-      return res.redirect("http://localhost:5173/login?error=access_denied");
+      return res.redirect(`${process.env.DOMAIN}/login?error=access_denied`);
     }
-    next(); // Continue to passport.authenticate if no error
+    next();
   },
-  passport.authenticate("google", {
-    failureRedirect: "http://localhost:5173/login?error=auth_failed",
+  passport.authenticate("github", {
+    failureRedirect: `${process.env.DOMAIN}/login?error=auth_failed`,
   }),
   (req, res) => {
     const { id, name, email } = req.user;
@@ -118,7 +167,51 @@ app.get(
     res.cookie("authToken", token, cookieOption);
 
     res.redirect(
-      `http://localhost:5173/auth/success/${encodeURIComponent(name)}/${encodeURIComponent(email)}`
+      `${process.env.DOMAIN}/auth/success/${encodeURIComponent(name)}/${encodeURIComponent(email)}`
+    );
+  }
+);
+
+passport.serializeUser((user, done) => {
+  done(null, user);
+});
+passport.deserializeUser((user, done) => done(null, user));
+app.use(cookieParser());
+app.get(
+  "/auth/google",
+  passport.authenticate("google", {
+    scope: ["profile", "email"],
+  })
+);
+app.get(
+  "/auth/google/callback",
+  (req, res, next) => {
+    if (req.query.error === "access_denied") {
+      return res.redirect(`${process.env.DOMAIN}/login?error=access_denied`);
+    }
+    next();
+  },
+  passport.authenticate("google", {
+    failureRedirect: `${process.env.DOMAIN}/login?error=auth_failed`,
+  }),
+  (req, res) => {
+    const { id, name, email } = req.user;
+
+    const token = jwt.sign({ id }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_TOKEN_EXPIRY,
+    });
+
+    const cookieOption = {
+      maxAge: 1000 * 60 * 60 * 24,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    };
+
+    res.cookie("authToken", token, cookieOption);
+
+    res.redirect(
+      `${process.env.DOMAIN}/auth/success/${encodeURIComponent(name)}/${encodeURIComponent(email)}`
     );
   }
 );
