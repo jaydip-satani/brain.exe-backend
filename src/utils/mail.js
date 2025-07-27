@@ -18,12 +18,13 @@ const sendMail = async (option) => {
 
   try {
     const data = await resend.emails.send({
-      from: "info@jaydipsatani.com",
+      from: "brainexe@jaydipsatani.com",
       to: option.email,
       subject: option.subject,
       html: emailBody,
       text: emailText,
     });
+    console.log(data);
     return data;
   } catch (error) {
     console.error("Email failed to send", error);
